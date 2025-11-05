@@ -10,6 +10,7 @@ export async function GET(request: Request) {
 
   if (!isPaid) {
     // 402 Payment Required response with enhanced headers
+    console.log("lawde ka JWT")
     return new Response(
       JSON.stringify({
         error: "Payment Required",

@@ -66,7 +66,10 @@ export default function Home() {
 
   // Real USDC payment
   async function handleRealPayment() {
+    console.log("printing")
+    console.log(paymentRequired)
     if (!paymentRequired) return;
+
     
     setStatus("Processing USDC payment... 💳");
     
