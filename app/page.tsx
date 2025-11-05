@@ -19,7 +19,7 @@ interface JokeData {
 }
 
 export default function Home() {
-  const [message, setMessage] = useState("Click to get a bad joke 🤡");
+  const [message, setMessage] = useState("Click to get a premium dad joke 😂");
   const [loading, setLoading] = useState(false);
   const [paymentRequired, setPaymentRequired] = useState<PaymentData | null>(null);
   const [joke, setJoke] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export default function Home() {
 
   async function getJoke() {
     setLoading(true);
-    setMessage("Fetching a bad joke...");
+    setMessage("Fetching a premium dad joke...");
     setPaymentRequired(null);
     setJoke(null);
 
@@ -192,8 +192,18 @@ export default function Home() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-6 p-4">
       <div className="text-center max-w-2xl">
-        <h1 className="text-4xl font-bold mb-2">Pay-Per-Bad-Joke API 🤡</h1>
-        <p className="text-gray-600 mb-6">USDC-powered monetized bad jokes (0.0001 USDC per joke)</p>
+        <h1 className="text-4xl font-bold mb-2">Pay-Per-API with Faremeter 😂</h1>
+        <p className="text-gray-600 mb-4">Real dad jokes from icanhazdadjoke.com - Pay 0.0001 USDC per premium joke!</p>
+        
+        <div className="mb-6">
+          <a 
+            href="/demo" 
+            className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mr-4"
+          >
+            🧪 Try API Demo
+          </a>
+          <span className="text-sm text-gray-500">Interactive testing for all endpoints</span>
+        </div>
         
         <div className="bg-gray-100 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold mb-2">{message}</h2>
@@ -246,7 +256,7 @@ export default function Home() {
           disabled={loading}
           className="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-lg font-semibold"
         >
-          {loading ? "Loading..." : "Get Bad Joke 🎭"}
+          {loading ? "Loading..." : "          Get Premium Dad Joke 😂"}
         </button>
         
         {authToken && (

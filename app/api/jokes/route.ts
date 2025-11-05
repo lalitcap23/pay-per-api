@@ -1,57 +1,59 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { solana } from "@faremeter/info";
+import { createPaywallMiddleware } from "../lib/paywallMiddleware";
 
-// Simple in-memory store for demo (use Redis/DB in production)
-const validTokens = new Set<string>();
-
-export async function GET(request: Request) {
-  // Check for payment token in headers
-  const authToken = request.headers.get('Authorization');
-  const isPaid = authToken && validTokens.has(authToken.replace('Bearer ', ''));
-
-  if (!isPaid) {
-    // 402 Payment Required response with enhanced headers
-    return new Response(
-      JSON.stringify({
-        error: "Payment Required",
-        message: "You must pay 0.0001 USDC to get a bad joke 🤡",
-        price: { amount: 0.0001, token: "USDC" },
-        paymentId: `joke_${Date.now()}`,
-        network: "mainnet-beta",
+// Create the paywall middleware with faremeter configuration
+const paywalledMiddleware = createPaywallMiddleware({
+  facilitatorURL: "https://facilitator.corbits.dev",
+  accepts: [
+    {
+      ...solana.x402Exact({
+        network: "devnet",
+        asset: "USDC", 
+        amount: 100, // $0.0001 USDC in base units (0.0001 * 1,000,000)
+        payTo: "YOUR_WALLET_ADDRESS", // Replace with your actual wallet
       }),
-      {
-        status: 402,
+      resource: "https://yourapi.com/api/jokes",
+      description: "Premium dad joke API - Get fresh jokes from icanhazdadjoke.com for 0.0001 USDC",
+    },
+  ],
+});
+
+export async function GET(request: NextRequest) {
+  // Use the paywall middleware
+  return paywalledMiddleware.middleware(request, async (req) => {
+
+    // If paid → fetch a random joke from icanhazdadjoke.com API
+    let joke = "Why did the programmer quit his job? He didn't get arrays! (Fallback joke)";
+    
+    try {
+      const response = await fetch('https://icanhazdadjoke.com/', {
         headers: {
-          "Content-Type": "application/json",
-          "WWW-Authenticate": 'Payment realm="BadJokeAPI", charset="UTF-8"',
-          "Accept-Payment": "solana-pay",
-        },
+          'Accept': 'application/json',
+          'User-Agent': 'Pay-Per-API Demo (https://github.com/lalitcap23/pay-per-api)'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        joke = data.joke;
       }
-    );
-  }
+    } catch (error) {
+      console.error('Failed to fetch joke from icanhazdadjoke.com:', error);
+      // Will use fallback joke above
+    }
 
-  // If paid → send a random joke
-  const jokes = [
-    "Why don't programmers like nature? It has too many bugs.",
-    "Why do Java developers wear glasses? Because they don't C#.",
-    "I told my computer I needed a break — it said no problem, it'll go to sleep.",
-    "What's a programmer's favorite place to hang out? The Foo Bar.",
-    "How many programmers does it take to change a light bulb? None, that's a hardware problem.",
-    "Why do programmers prefer dark mode? Because light attracts bugs!",
-    "A SQL query goes into a bar, walks up to two tables and asks: 'Can I join you?'",
-    "There are only 10 types of people in the world: those who understand binary and those who don't.",
-  ];
-  const joke = jokes[Math.floor(Math.random() * jokes.length)];
-
-  return NextResponse.json({ 
-    joke,
-    timestamp: new Date().toISOString(),
-    paid: true 
+    return NextResponse.json({ 
+      joke,
+      timestamp: new Date().toISOString(),
+      paid: true 
+    });
   });
 }
 
 // Add token to valid tokens (called after payment verification)
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const { token } = await request.json();
-  validTokens.add(token);
+  paywalledMiddleware.addValidToken(token);
   return NextResponse.json({ success: true });
 }

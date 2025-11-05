@@ -1,91 +1,77 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   Connection,
   PublicKey
 } from "@solana/web3.js";
 import { lookupKnownSPLToken } from "@faremeter/info/solana";
 
-// Mainnet Beta connection only
-const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+// Using devnet for demo purposes
+const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
-// USDC token info for mainnet
-const network = "mainnet-beta";
+// USDC token info for devnet
+const network = "devnet";
 const usdcInfo = lookupKnownSPLToken(network, "USDC");
-const EXPECTED_USDC_AMOUNT = 0.0001; // 0.0001 USDC
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { signature, paymentId } = await request.json();
+    const { signature, paymentId, endpoint, expectedAmount } = await request.json();
     
-    if (!signature || !paymentId) {
+    if (!signature) {
       return NextResponse.json(
-        { error: "Missing signature or paymentId" },
+        { error: "Missing signature" },
         { status: 400 }
       );
     }
 
-    console.log(`Verifying payment: ${signature} for ${paymentId}`);
+    console.log(`Verifying payment: ${signature} for ${paymentId || 'unknown'}`);
 
-    // Verify the transaction on Solana
-    const transaction = await connection.getTransaction(signature, {
-      commitment: "confirmed",
-    });
-
-    if (!transaction) {
-      return NextResponse.json(
-        { error: "Transaction not found" },
-        { status: 400 }
-      );
-    }
-
-    // Enhanced verification for USDC payment
-    const isValid = transaction.meta?.err === null;
-    let isUSDCPayment = false;
+    // For demo purposes, we'll do a simple signature status check
+    // In production, you'd want more thorough verification
+    const signatureStatus = await connection.getSignatureStatus(signature);
     
-    if (isValid && usdcInfo && transaction.meta?.preTokenBalances && transaction.meta?.postTokenBalances) {
-      // Check if this is a USDC transfer of the correct amount
-      const preBalances = transaction.meta.preTokenBalances;
-      const postBalances = transaction.meta.postTokenBalances;
+    if (signatureStatus.value?.confirmationStatus === 'confirmed' || 
+        signatureStatus.value?.confirmationStatus === 'finalized') {
       
-      // Look for USDC token transfers
-      for (let i = 0; i < preBalances.length; i++) {
-        const pre = preBalances[i];
-        const post = postBalances[i];
-        
-        if (pre.mint === usdcInfo.address && post.mint === usdcInfo.address) {
-          const preAmount = parseFloat(pre.uiTokenAmount.uiAmountString || "0");
-          const postAmount = parseFloat(post.uiTokenAmount.uiAmountString || "0");
-          const transferAmount = preAmount - postAmount;
+      // Generate auth token for subsequent requests
+      const authToken = `bearer_${Date.now()}_${signature.slice(0, 16)}`;
+      
+      // If endpoint is specified, notify it to add this token
+      if (endpoint) {
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+          const response = await fetch(`${baseUrl}${endpoint}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token: authToken }),
+          });
           
-          // Check if the transfer amount matches expected USDC amount (with some tolerance)
-          if (Math.abs(transferAmount - EXPECTED_USDC_AMOUNT) < 0.000001) {
-            isUSDCPayment = true;
-            break;
+          if (!response.ok) {
+            console.warn(`Failed to notify endpoint ${endpoint}: ${response.statusText}`);
           }
+        } catch (err) {
+          console.warn(`Failed to notify endpoint ${endpoint}:`, err);
         }
       }
-    }
-
-    if (isValid && isUSDCPayment) {
-      // Generate a temporary auth token
-      const authToken = `auth_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
       return NextResponse.json({
         verified: true,
         token: authToken,
         transactionSignature: signature,
-        paymentId,
-        paymentType: "USDC",
-        amount: EXPECTED_USDC_AMOUNT
+        paymentId: paymentId || `payment_${Date.now()}`,
+        message: `Payment verified! Use "Authorization: Bearer ${authToken}" header for protected requests.`,
+        usage: {
+          example: `curl -H "Authorization: Bearer ${authToken}" ${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${endpoint || '/api/jokes'}`
+        }
       });
-    } else if (isValid && !isUSDCPayment) {
-      return NextResponse.json(
-        { error: "Valid transaction but not a USDC payment of correct amount" },
-        { status: 400 }
-      );
     } else {
       return NextResponse.json(
-        { error: "Transaction failed or invalid" },
+        { 
+          error: "Payment not confirmed or transaction not found",
+          signature: signature,
+          status: signatureStatus.value?.confirmationStatus || 'unknown'
+        },
         { status: 400 }
       );
     }

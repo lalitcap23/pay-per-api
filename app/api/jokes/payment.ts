@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   Keypair,
   PublicKey,
@@ -7,16 +7,13 @@ import {
 import { lookupKnownSPLToken } from "@faremeter/info/solana";
 import * as fs from "fs";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { signature, paymentId } = await request.json();
+    const { signature, paymentId, endpoint } = await request.json();
     
-    // Load keypair from file (server-side only)
-    const keypairData = JSON.parse(fs.readFileSync("./payer-wallet.json", "utf-8"));
-    const keypair = Keypair.fromSecretKey(Uint8Array.from(keypairData));
-    
-    const network = "mainnet-beta";
-    const connection = new Connection("https://api.mainnet-beta.solana.com");
+    // For demo purposes, we'll use devnet
+    const network = "devnet";
+    const connection = new Connection("https://api.devnet.solana.com");
     
     // Verify the signature exists and is confirmed
     const signatureStatus = await connection.getSignatureStatus(signature);
@@ -27,15 +24,30 @@ export async function POST(request: Request) {
       // Generate auth token for subsequent requests
       const authToken = `bearer_${Date.now()}_${signature.slice(0, 16)}`;
       
+      // Notify the specific endpoint to add this token
+      const endpointUrl = endpoint || '/api/jokes';
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${endpointUrl}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token: authToken }),
+        });
+      } catch (err) {
+        console.warn('Failed to notify endpoint:', err);
+      }
+      
       return NextResponse.json({ 
         verified: true, 
         token: authToken,
-        signature 
+        signature,
+        message: "Payment verified! Use this token in Authorization header for future requests."
       });
     } else {
       return NextResponse.json({ 
         verified: false, 
-        error: "Payment not confirmed" 
+        error: "Payment not confirmed or not found" 
       }, { status: 400 });
     }
     
