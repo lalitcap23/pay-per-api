@@ -3,12 +3,29 @@ import { useState } from 'react';
 import { 
   Connection, 
   PublicKey, 
-  Keypair,
-  VersionedTransaction
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL
 } from '@solana/web3.js';
-import { createPaymentHandler } from "@faremeter/payment-solana/exact";
-import { wrap } from "@faremeter/fetch";
-import { lookupKnownSPLToken } from "@faremeter/info/solana";
+import { 
+  createTransferInstruction,
+  getAssociatedTokenAddress,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID
+} from '@solana/spl-token';
+
+// Add window.solana type
+declare global {
+  interface Window {
+    solana?: {
+      isPhantom?: boolean;
+      publicKey?: PublicKey;
+      isConnected?: boolean;
+      connect(): Promise<{ publicKey: PublicKey }>;
+      signTransaction(transaction: Transaction): Promise<Transaction>;
+    };
+  }
+}
 
 interface PaymentResult {
   success: boolean;
@@ -29,89 +46,80 @@ export function usePayment() {
     try {
       // Check if wallet is connected
       if (typeof window === 'undefined' || !window.solana) {
-        throw new Error('Solana wallet not found. Please install Phantom or another Solana wallet.');
+        throw new Error('Solana wallet not found. Please install Phantom wallet.');
       }
 
-      const phantomWallet = window.solana;
+      const wallet = window.solana;
       
-      if (!phantomWallet.isConnected) {
-        await phantomWallet.connect();
+      if (!wallet.isConnected) {
+        await wallet.connect();
       }
 
-      if (!phantomWallet.publicKey) {
+      if (!wallet.publicKey) {
         throw new Error('Wallet public key not available');
       }
 
-      const network = "mainnet-beta";
       const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
       
-      // Get USDC token info for mainnet
-      const usdcInfo = lookupKnownSPLToken(network, "USDC");
-      if (!usdcInfo) {
-        throw new Error('USDC token info not found for mainnet');
-      }
-      const usdcMint = new PublicKey(usdcInfo.address);
+      // USDC Mainnet mint address
+      const usdcMint = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+      
+      // Payment receiver (demo - sends to burn address)
+      const receiverPublicKey = new PublicKey('11111111111111111111111111111112');
+      
+      // Get token accounts
+      const senderTokenAccount = await getAssociatedTokenAddress(
+        usdcMint,
+        wallet.publicKey,
+        false,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      
+      const receiverTokenAccount = await getAssociatedTokenAddress(
+        usdcMint,
+        receiverPublicKey,
+        false,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
 
-      // Create wallet interface for faremeter
-      const wallet = {
-        network,
-        publicKey: phantomWallet.publicKey,
-        updateTransaction: async (tx: VersionedTransaction) => {
-          // Note: Phantom doesn't support VersionedTransaction signing directly
-          // This is a simplified approach - in production, you might need a different approach
-          throw new Error('Direct transaction signing not supported yet');
-        }
-      };
+      // Convert 0.0001 USDC to smallest unit (USDC has 6 decimals)
+      const usdcAmount = Math.floor(0.0001 * Math.pow(10, 6)); // 100 micro-USDC
+      
+      const transaction = new Transaction().add(
+        createTransferInstruction(
+          senderTokenAccount,
+          receiverTokenAccount,
+          wallet.publicKey,
+          usdcAmount,
+          [],
+          TOKEN_PROGRAM_ID
+        )
+      );
 
-      // Setup payment handler using faremeter
-      const handler = createPaymentHandler(wallet, usdcMint, connection);
-      const fetchWithPayer = wrap(fetch, { handlers: [handler] });
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = wallet.publicKey;
 
-      // Make the payment request to your API
-      const response = await fetchWithPayer(`/api/jokes`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-      });
+      // Sign and send transaction
+      const signedTransaction = await wallet.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      
+      // Wait for confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
 
-      if (response.ok) {
-        // Extract signature from the payment (this would come from faremeter)
-        // For now, we'll simulate this
-        const mockSignature = `payment_${Date.now()}_${Math.random().toString(36)}`;
-        return { success: true, signature: mockSignature };
-      } else {
-        throw new Error(`Payment failed with status: ${response.status}`);
-      }
+      return { success: true, signature };
       
     } catch (error) {
-      console.error('Payment error:', error);
-      
-      // For now, let's provide a fallback direct USDC payment
-      try {
-        return await fallbackUSDCPayment(paymentId, amount);
-      } catch (fallbackError) {
-        return { 
-          success: false, 
-          error: error instanceof Error ? error.message : 'Payment failed' 
-        };
-      }
+      console.error('USDC Payment error:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'USDC payment failed' 
+      };
     } finally {
       setProcessing(false);
     }
-  };
-
-  // Fallback direct USDC payment method
-  const fallbackUSDCPayment = async (paymentId: string, amount: number): Promise<PaymentResult> => {
-    // This would implement direct USDC transfer
-    // For demonstration, we'll create a mock transaction signature
-    const mockSignature = `usdc_${Date.now()}_${paymentId}`;
-    
-    // In real implementation, this would:
-    // 1. Create USDC transfer instruction
-    // 2. Sign with wallet
-    // 3. Send transaction
-    // 4. Return real signature
-    
-    return { success: true, signature: mockSignature };
   };
 
   return { processPayment, processing };

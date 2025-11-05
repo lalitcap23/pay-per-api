@@ -24,3 +24,100 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Force text visibility and prevent white-on-white issues */
+.payment-modal,
+.payment-dialog,
+[role="dialog"] {
+  background: white !important;
+  color: #1a1a1a !important;
+}
+
+.payment-modal * {
+  color: inherit !important;
+}
+
+.payment-modal h1,
+.payment-modal h2,
+.payment-modal h3,
+.payment-modal h4,
+.payment-modal h5,
+.payment-modal h6 {
+  color: #1a1a1a !important;
+  font-weight: 600 !important;
+}
+
+.payment-modal p,
+.payment-modal span,
+.payment-modal div {
+  color: #374151 !important;
+}
+
+.payment-modal button {
+  background: #3b82f6 !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+}
+
+.payment-modal button:hover {
+  background: #2563eb !important;
+}
+
+/* Ensure wallet connection dialogs are visible */
+.wallet-adapter-modal,
+.wallet-adapter-modal-container {
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  background: white !important;
+  color: #1a1a1a !important;
+  border-radius: 12px !important;
+  padding: 24px !important;
+}
+
+.wallet-adapter-modal-title {
+  color: #1a1a1a !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  margin-bottom: 16px !important;
+}
+
+.wallet-adapter-modal-list {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.wallet-adapter-modal-list-item {
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  margin-bottom: 8px !important;
+  padding: 12px !important;
+  cursor: pointer !important;
+}
+
+.wallet-adapter-modal-list-item:hover {
+  background: #f3f4f6 !important;
+  border-color: #d1d5db !important;
+}
+
+.wallet-adapter-button-trigger {
+  background: #3b82f6 !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+}
+
+/* Fix any other potential modal/dialog visibility issues */
+[data-reach-dialog-overlay],
+[data-reach-dialog-content] {
+  background: white !important;
+  color: #1a1a1a !important;
+}
