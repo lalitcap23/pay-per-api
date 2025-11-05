@@ -9,6 +9,11 @@ interface PaymentData {
   message: string;
   price: { amount: number; token: string };
   paymentId: string;
+  network: string;
+  paymentDetails?: {
+    recipient: string;
+    splToken: string;
+  };
 }
 
 interface JokeData {
@@ -27,7 +32,7 @@ export default function Home() {
   const { processPayment, processing } = usePayment();
   const { connected, connecting, publicKey, connectWallet, disconnectWallet } = useWallet();
 
-  async function getJoke() {
+  async function getJoke(token?: string) {
     setLoading(true);
     setStatus("Fetching your bad joke...");
     setPaymentRequired(null);
@@ -38,9 +43,10 @@ export default function Home() {
         "Content-Type": "application/json"
       };
       
-      // Add auth token if we have one
-      if (authToken) {
-        headers["Authorization"] = `Bearer ${authToken}`;
+      // Add auth token if we have one (use passed token or state token)
+      const tokenToUse = token || authToken;
+      if (tokenToUse) {
+        headers["Authorization"] = `Bearer ${tokenToUse}`;
       }
 
       const res = await fetch("/api/jokes", { headers });
@@ -89,7 +95,8 @@ export default function Home() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             signature: result.signature,
-            paymentId: paymentRequired.paymentId
+            paymentId: paymentRequired.paymentId,
+            network: paymentRequired.network
           })
         });
 
@@ -108,8 +115,8 @@ export default function Home() {
           setStatus("🎉 Payment successful! Fetching your joke...");
           setPaymentRequired(null);
           
-          // Automatically fetch the joke
-          setTimeout(() => getJoke(), 1000);
+          // Automatically fetch the joke with the token (don't wait for state to update!)
+          setTimeout(() => getJoke(verifyData.token), 500);
           
         } else {
           setStatus("❌ Payment verification failed");
@@ -221,6 +228,9 @@ export default function Home() {
               <h3 className="font-semibold text-yellow-200 mb-2">Payment Required</h3>
               <p className="text-yellow-100 mb-1">
                 Amount: {paymentRequired.price.amount} {paymentRequired.price.token}
+              </p>
+              <p className="text-yellow-200 text-sm mb-1">
+                Network: <span className="font-mono bg-yellow-600/30 px-2 py-0.5 rounded">{paymentRequired.network}</span>
               </p>
               <p className="text-yellow-200 text-sm mb-4">
                 ID: {paymentRequired.paymentId}

@@ -59,13 +59,14 @@ export function usePayment() {
         throw new Error('Wallet public key not available');
       }
 
-      const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+      // Use Solana DEVNET
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
       
-      // USDC Mainnet mint address
-      const usdcMint = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+      // USDC DEVNET mint address (different from mainnet!)
+      const usdcMint = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
       
-      // Payment receiver (demo - sends to burn address)
-      const receiverPublicKey = new PublicKey('11111111111111111111111111111112');
+      // Payment receiver - your actual wallet address
+      const receiverPublicKey = new PublicKey('455q3UD1KkfMP7zWrd2XcYoZW8LaVoiU969cmusengZ9');
       
       // Get token accounts
       const senderTokenAccount = await getAssociatedTokenAddress(
