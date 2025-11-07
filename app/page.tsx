@@ -152,7 +152,9 @@ export default function Home() {
             Pay-Per-Bad-Joke API 🤡
           </h1>
           <p className="text-blue-200">
-            USDC micropayments for premium jokes
+            USDC micropayments for premium jokes</p>
+      <p>      we use the corbits sdk for the micropayment (x402)
+
           </p>
           <p className="text-blue-300 text-sm">
             0.0001 USDC per joke
@@ -261,7 +263,7 @@ export default function Home() {
           {!paymentRequired && (
             <div className="text-center">
               <button
-                onClick={getJoke}
+                onClick={() => getJoke()}
                 disabled={isLoading}
                 className="w-full px-8 py-4 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 text-white rounded-xl font-semibold text-lg transition-colors"
               >
