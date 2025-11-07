@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     return new NextResponse(
       JSON.stringify({
         error: "Payment Required",
-        price: { amount: 100, token: "USDC" },
+        price: { amount: 0.0001, token: "USDC" },
         paymentId: `joke_${Date.now()}`,
         network: "devnet",
         paymentDetails: {
