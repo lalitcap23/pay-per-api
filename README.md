@@ -1,4 +1,4 @@
-# PayJoke API 🤡
+# Pay-per-API 🤡
 
 A demonstration of **x402 HTTP Payment Protocol** for micropayments using the Corbits SDK. This project showcases how modern web APIs can implement per-endpoint billing with cryptocurrency micropayments.
 
